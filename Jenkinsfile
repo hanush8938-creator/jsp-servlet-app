@@ -9,16 +9,26 @@ pipeline {
     }
 
     environment {
+
         APP_NAME = 'jsp-servlet-app'
+
+        GIT_URL = 'https://github.com/USERNAME/REPOSITORY.git'
+        GIT_BRANCH = 'main'
+
         WAR_FILE = 'target/jsp-servlet-app.war'
+
         TOMCAT_WEBAPPS = '/opt/tomcat/webapps'
+
     }
 
     stages {
 
-        stage('1. Checkout') {
+        stage('1. Git Checkout') {
             steps {
-                checkout scm
+                echo 'Pulling source code from GitHub...'
+
+                git branch: "${GIT_BRANCH}",
+                    url: "${GIT_URL}"
             }
         }
 
@@ -31,31 +41,45 @@ pipeline {
             }
         }
 
-        stage('3. Build') {
+        stage('3. Maven Clean') {
             steps {
-                sh 'mvn clean compile'
+                sh 'mvn clean'
             }
         }
 
-        stage('4. Test') {
+        stage('4. Build') {
             steps {
+                echo 'Building Java application...'
+
+                sh 'mvn compile'
+            }
+        }
+
+        stage('5. Test') {
+            steps {
+                echo 'Running test cases...'
+
                 sh 'mvn test'
             }
         }
 
-        stage('5. Package') {
+        stage('6. Package WAR') {
             steps {
+                echo 'Creating WAR file...'
+
                 sh 'mvn package -DskipTests'
 
                 sh '''
-                    ls -lh target/
                     test -f ${WAR_FILE}
+                    ls -lh ${WAR_FILE}
                 '''
             }
         }
 
-        stage('6. Deploy to Tomcat') {
+        stage('7. Deploy to Tomcat') {
             steps {
+                echo 'Deploying application to Tomcat...'
+
                 sh '''
                     sudo cp ${WAR_FILE} \
                     ${TOMCAT_WEBAPPS}/${APP_NAME}.war
@@ -70,19 +94,26 @@ pipeline {
     post {
 
         success {
-            echo 'Application deployed successfully!'
+            echo '================================'
+            echo 'BUILD SUCCESSFUL'
+            echo 'DEPLOYMENT SUCCESSFUL'
+            echo '================================'
+
+            echo 'Application URL:'
             echo 'http://YOUR_EC2_PUBLIC_IP:9080/jsp-servlet-app/'
         }
 
         failure {
-            echo 'Pipeline failed! Check Console Output.'
+            echo 'JENKINS PIPELINE FAILED!'
+            echo 'Please check Console Output.'
         }
 
         always {
-            archiveArtifacts artifacts: 'target/*.war',
+            archiveArtifacts(
+                artifacts: 'target/*.war',
                 fingerprint: true,
                 allowEmptyArchive: true
+            )
         }
     }
 }
-
