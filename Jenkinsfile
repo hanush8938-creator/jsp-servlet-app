@@ -6,28 +6,30 @@ pipeline {
     options {
         timestamps()
         disableConcurrentBuilds()
+        skipDefaultCheckout(true)
     }
 
     environment {
 
         APP_NAME = 'jsp-servlet-app'
 
-        GIT_URL = 'https://github.com/USERNAME/REPOSITORY.git'
+        GIT_URL = 'https://github.com/hanush8938-creator/jsp-servlet-app.git'
+
         GIT_BRANCH = 'main'
 
         WAR_FILE = 'target/jsp-servlet-app.war'
 
         TOMCAT_WEBAPPS = '/opt/tomcat/webapps'
-
     }
 
     stages {
 
         stage('1. Git Checkout') {
             steps {
-                echo 'Pulling source code from GitHub...'
+                echo 'Pulling code from GitHub...'
 
                 git branch: "${GIT_BRANCH}",
+                    credentialsId: 'GitHub',
                     url: "${GIT_URL}"
             }
         }
@@ -49,24 +51,18 @@ pipeline {
 
         stage('4. Build') {
             steps {
-                echo 'Building Java application...'
-
                 sh 'mvn compile'
             }
         }
 
         stage('5. Test') {
             steps {
-                echo 'Running test cases...'
-
                 sh 'mvn test'
             }
         }
 
         stage('6. Package WAR') {
             steps {
-                echo 'Creating WAR file...'
-
                 sh 'mvn package -DskipTests'
 
                 sh '''
@@ -78,8 +74,6 @@ pipeline {
 
         stage('7. Deploy to Tomcat') {
             steps {
-                echo 'Deploying application to Tomcat...'
-
                 sh '''
                     sudo cp ${WAR_FILE} \
                     ${TOMCAT_WEBAPPS}/${APP_NAME}.war
@@ -94,18 +88,14 @@ pipeline {
     post {
 
         success {
-            echo '================================'
-            echo 'BUILD SUCCESSFUL'
-            echo 'DEPLOYMENT SUCCESSFUL'
-            echo '================================'
-
-            echo 'Application URL:'
+            echo 'BUILD SUCCESSFUL!'
+            echo 'DEPLOYMENT SUCCESSFUL!'
             echo 'http://YOUR_EC2_PUBLIC_IP:9080/jsp-servlet-app/'
         }
 
         failure {
-            echo 'JENKINS PIPELINE FAILED!'
-            echo 'Please check Console Output.'
+            echo 'PIPELINE FAILED!'
+            echo 'Check Jenkins Console Output.'
         }
 
         always {
