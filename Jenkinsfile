@@ -1,8 +1,16 @@
+
 pipeline {
+
     agent any
 
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
     environment {
-        APP_NAME = 'student-app'
+        APP_NAME = 'jsp-servlet-app'
+        WAR_FILE = 'target/jsp-servlet-app.war'
         TOMCAT_WEBAPPS = '/opt/tomcat/webapps'
     }
 
@@ -10,12 +18,11 @@ pipeline {
 
         stage('1. Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/hanush8938-creator/jsp-servelt-app.git '
+                checkout scm
             }
         }
 
-        stage('2. Check Java and Maven') {
+        stage('2. Java and Maven Check') {
             steps {
                 sh '''
                     java -version
@@ -24,49 +31,58 @@ pipeline {
             }
         }
 
-        stage('3. Build Application') {
+        stage('3. Build') {
             steps {
                 sh 'mvn clean compile'
             }
         }
 
-        stage('4. Test Application') {
+        stage('4. Test') {
             steps {
                 sh 'mvn test'
             }
         }
 
-        stage('5. Create WAR') {
+        stage('5. Package') {
             steps {
-                sh 'mvn package'
-                archiveArtifacts artifacts: 'target/student-app.war',
-                                 fingerprint: true
+                sh 'mvn package -DskipTests'
+
+                sh '''
+                    ls -lh target/
+                    test -f ${WAR_FILE}
+                '''
             }
         }
 
         stage('6. Deploy to Tomcat') {
             steps {
                 sh '''
-                    cp target/student-app.war \
-                    ${TOMCAT_WEBAPPS}/student-app.war
+                    sudo cp ${WAR_FILE} \
+                    ${TOMCAT_WEBAPPS}/${APP_NAME}.war
 
-                    sudo systemctl restart tomcat
-
-                    sleep 10
-
-                    test -f ${TOMCAT_WEBAPPS}/student-app.war
+                    sudo chown tomcat:tomcat \
+                    ${TOMCAT_WEBAPPS}/${APP_NAME}.war
                 '''
             }
         }
     }
 
     post {
+
         success {
-            echo 'Java JSP application deployed successfully!'
+            echo 'Application deployed successfully!'
+            echo 'http://YOUR_EC2_PUBLIC_IP:9080/jsp-servlet-app/'
         }
 
         failure {
-            echo 'Jenkins pipeline failed. Check console output.'
+            echo 'Pipeline failed! Check Console Output.'
+        }
+
+        always {
+            archiveArtifacts artifacts: 'target/*.war',
+                fingerprint: true,
+                allowEmptyArchive: true
         }
     }
 }
+
